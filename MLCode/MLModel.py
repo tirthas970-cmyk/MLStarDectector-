@@ -12,57 +12,49 @@ import joblib
 class MLStarDectector:
 
     def __init__(self):
-        pass
+        self.model = None
+        self.file_name = 'TrainStarData.joblib'
 
     def TrainModel_Test(self, datalist):
 
         df = pd.read_csv('star_dataset.csv')
 
 
-        X = df.drop(columns=['Name'])
+        X = df.drop(columns=['Name', 'Spectral Class'])
+        y = df['Name']
 
         #This is from gemini (23-28)
-        ct = ColumnTransformer(
-            transformers=[
-                # Column transformer vectorizes specfic columns
-                ('text_rules', TfidfVectorizer(), 'Spectral Class')
-            ],
-            remainder='passthrough' #keeps other columns
-        )
+      
 
-
-        #Save trained file
-        file_name = 'TrainStarData'
-
-        if os.path.exists(file_name):
-            model = joblib.load(file_name) 
+        if os.path.exists(self.file_name):
+            self.model = joblib.load(self.file_name) 
         else:
-            X_final = ct.fit_transform(X)
 
-            y = df['Name']
+            self.model = DecisionTreeClassifier()
+            self.model.fit(X, y)
 
-            model = DecisionTreeClassifier()
-            model.fit(X_final, y)
-
-            joblib.dump(model, file_name)
+            joblib.dump(self.model, self.file_name)
 
        
-        df_user_input = pd.DataFrame([datalist], columns=['Distance (ly)', 'Luminosity (L/Lo)', 'Temperature (K)', 'Spectral Class'])
+        df_user_input = pd.DataFrame([datalist], columns=['Distance (ly)', 'Luminosity (L/Lo)', 'Radius (R/Ro)', 'Temperature (K)'])
 
-        user_data = ct.transform(df_user_input)
-
-        star_names = model.classes_
+        star_names = self.model.classes_
 
         #this gets first probiility 
-        predictions_withprob = model.predict_proba(user_data)[0]
+        predictions_withprob = self.model.predict_proba(df_user_input)[0]
 
         top_5_prob = np.argsort(predictions_withprob)[::-1][:5]
 
-
-
         #Loop from gemini 
-        for star in top_5_prob:
-             print(f"{star_names[star]}: {top_5_prob[star] * 100:.2f}%")
+        best_star_index = top_5_prob[0]
+        
+        # Get the name and probability for just that one star
+        name = star_names[best_star_index]
+
+        return f"Prediction: {name}"
+
+        
+
 
 
 
